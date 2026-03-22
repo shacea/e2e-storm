@@ -1,0 +1,15 @@
+{
+  "description": "E2E Storm loop stop hook — ralph-loop 메커니즘으로 테스트 반복 실행",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-hook.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

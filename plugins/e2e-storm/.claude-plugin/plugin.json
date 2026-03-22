@@ -1,0 +1,5 @@
+{
+  "name": "e2e-storm",
+  "description": "E2E Test Storm — Playwright 기반 프론트엔드 자동 E2E 테스트. 페르소나/시나리오 생성 및 병렬 에이전트 실행.",
+  "version": "1.0.0"
+}
