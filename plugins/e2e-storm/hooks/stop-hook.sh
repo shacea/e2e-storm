@@ -34,7 +34,7 @@ COMPLETION_PROMISE=$(echo "$FRONTMATTER" | grep '^completion_promise:' | sed 's/
 
 # 세션 격리: 다른 세션의 루프를 방해하지 않는다
 STATE_SESSION=$(echo "$FRONTMATTER" | grep '^session_id:' | sed 's/session_id: *//' || true)
-HOOK_SESSION=$(echo "$HOOK_INPUT" | jq -r '.session_id // ""')
+HOOK_SESSION=$(echo "$HOOK_INPUT" | jq -r '.session_id // ""' 2>/dev/null || echo "")
 if [[ -n "$STATE_SESSION" ]] && [[ "$STATE_SESSION" != "$HOOK_SESSION" ]]; then
   exit 0
 fi
@@ -61,7 +61,7 @@ if [[ $MAX_ITERATIONS -gt 0 ]] && [[ $ITERATION -ge $MAX_ITERATIONS ]]; then
 fi
 
 # 트랜스크립트 경로
-TRANSCRIPT_PATH=$(echo "$HOOK_INPUT" | jq -r '.transcript_path')
+TRANSCRIPT_PATH=$(echo "$HOOK_INPUT" | jq -r '.transcript_path' 2>/dev/null || echo "")
 
 if [[ ! -f "$TRANSCRIPT_PATH" ]]; then
   echo "⚠️  E2E Storm: 트랜스크립트 파일 없음 — 루프 중지" >&2
@@ -97,7 +97,7 @@ fi
 
 # Completion promise 확인
 if [[ "$COMPLETION_PROMISE" != "null" ]] && [[ -n "$COMPLETION_PROMISE" ]]; then
-  PROMISE_TEXT=$(echo "$LAST_OUTPUT" | perl -0777 -pe 's/.*?<promise>(.*?)<\/promise>.*/$1/s; s/^\s+|\s+$//g; s/\s+/ /g' 2>/dev/null || echo "")
+  PROMISE_TEXT=$(echo "$LAST_OUTPUT" | grep -o '<promise>[^<]*</promise>' | sed 's/<promise>//;s/<\/promise>//' | tail -1)
   if [[ -n "$PROMISE_TEXT" ]] && [[ "$PROMISE_TEXT" = "$COMPLETION_PROMISE" ]]; then
     echo "✅ E2E Storm: 완료! <promise>$COMPLETION_PROMISE</promise>"
     rm "$STATE_FILE"
@@ -130,7 +130,7 @@ if [[ "$LOOP_TYPE" == "storm" ]] && [[ -f "$HEARTBEAT_SCRIPT" ]]; then
     STALE_CYCLE=$(echo "$STALE_INFO" | jq -r '.cycle // 0' 2>/dev/null || echo "0")
 
     # recovery 시도 횟수 확인
-    SCENARIOS_DIR=$(echo "$PROMPT_TEXT" | grep -oP 'SCENARIOS_DIR: \K[^ ]+' | head -1 || true)
+    SCENARIOS_DIR=$(echo "$PROMPT_TEXT" | sed -n 's/.*SCENARIOS_DIR: \([^ ]*\).*/\1/p' | head -1)
     if [[ -n "$SCENARIOS_DIR" ]] && [[ -f "$SCENARIOS_DIR/state.json" ]]; then
       RECOVERY_ATTEMPTS=$(jq -r '.recovery.attempts // 0' "$SCENARIOS_DIR/state.json" 2>/dev/null || echo "0")
       MAX_RECOVERY=$(jq -r '.recovery.max_attempts // 3' "$SCENARIOS_DIR/state.json" 2>/dev/null || echo "3")
@@ -146,6 +146,17 @@ if [[ "$LOOP_TYPE" == "storm" ]] && [[ -f "$HEARTBEAT_SCRIPT" ]]; then
       TMP_STATE="$SCENARIOS_DIR/state.json.tmp.$$"
       jq ".recovery.attempts = $((RECOVERY_ATTEMPTS + 1))" "$SCENARIOS_DIR/state.json" > "$TMP_STATE" 2>/dev/null && \
         mv "$TMP_STATE" "$SCENARIOS_DIR/state.json" || rm -f "$TMP_STATE"
+    else
+      # SCENARIOS_DIR가 비어있거나 state.json이 없을 때 카운터 파일로 복구 시도 추적
+      RECOVERY_COUNT_FILE=".claude/e2e-storm-recovery-count"
+      RECOVERY_ATTEMPTS=$(cat "$RECOVERY_COUNT_FILE" 2>/dev/null || echo "0")
+      if [[ $RECOVERY_ATTEMPTS -ge 3 ]]; then
+        echo "🛑 E2E Storm: 복구 시도 3회 초과. 루프 종료." >&2
+        rm -f "$STATE_FILE" "$RECOVERY_COUNT_FILE"
+        bash "$HEARTBEAT_SCRIPT" clean 2>/dev/null
+        exit 0
+      fi
+      echo $((RECOVERY_ATTEMPTS + 1)) > "$RECOVERY_COUNT_FILE"
     fi
 
     SYSTEM_MSG="⚠️ E2E Storm 루프가 Phase $STALE_PHASE, Cycle $STALE_CYCLE에서 중단 감지됨. state.json을 읽고 해당 Phase부터 재개하라."
@@ -155,7 +166,7 @@ fi
 # iteration 업데이트
 TEMP_FILE="${STATE_FILE}.tmp.$$"
 sed "s/^iteration: .*/iteration: $NEXT_ITERATION/" "$STATE_FILE" > "$TEMP_FILE"
-mv "$TEMP_FILE" "$STATE_FILE"
+mv "$TEMP_FILE" "$STATE_FILE" || { rm -f "$TEMP_FILE"; exit 1; }
 
 # 시스템 메시지 (watchdog에서 이미 설정되지 않은 경우)
 if [[ -z "$SYSTEM_MSG" ]]; then

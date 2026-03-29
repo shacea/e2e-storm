@@ -3,7 +3,7 @@ name: conflict-analyzer
 description: "E2E Storm Phase 1 — 대상 프로젝트 코드를 분석하여 에이전트 간 충돌 맵(conflict-map.json)을 생성하는 에이전트. 테스트 에이전트 충돌 방지, 격리 규칙 생성에 사용."
 model: sonnet
 when_to_use: "E2E Storm의 storm 커맨드 Phase 1에서 호출. 직접 사용하지 않음."
-tools: ["Read", "Glob", "Grep", "Write", "Bash"]
+tools: ["Read", "Glob", "Grep", "Write"]
 ---
 
 # Conflict Analyzer Agent

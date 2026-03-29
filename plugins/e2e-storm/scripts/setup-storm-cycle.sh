@@ -57,21 +57,28 @@ while [[ $# -gt 0 ]]; do
       [[ -z "${2:-}" ]] && { echo "❌ --project 는 경로 필요" >&2; exit 1; }
       PROJECT_PATH="$2"; shift 2 ;;
     --agents)
-      [[ -z "${2:-}" ]] || [[ ! "$2" =~ ^[0-9]+$ ]] && { echo "❌ --agents 는 양의 정수 필요" >&2; exit 1; }
+      if [[ -z "${2:-}" ]] || [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -eq 0 ]]; then
+        echo "❌ --agents 는 1 이상의 정수 필요 (예: --agents 10)" >&2
+        exit 1
+      fi
       AGENTS="$2"; shift 2 ;;
     --max-cycles)
-      [[ -z "${2:-}" ]] || [[ ! "$2" =~ ^[0-9]+$ ]] && { echo "❌ --max-cycles 는 양의 정수 필요" >&2; exit 1; }
+      if [[ -z "${2:-}" ]] || [[ ! "$2" =~ ^[0-9]+$ ]]; then
+        echo "❌ --max-cycles 는 양의 정수 필요" >&2
+        exit 1
+      fi
       MAX_CYCLES="$2"; shift 2 ;;
     --no-app-fix)
       APP_CODE_FIX="false"; shift ;;
     *)
+      echo "⚠️  알 수 없는 옵션: $1 (무시됨)" >&2
       PROMPT_PARTS+=("$1"); shift ;;
   esac
 done
 
 # 세션 ID
 SESSION_ID="${CLAUDE_SESSION_ID:-$(date +%s)}"
-BRANCH_SLUG="e2e-storm/$(date +%Y-%m-%d)-cycle"
+BRANCH_SLUG="e2e-storm/$(date +%Y-%m-%d)-${SESSION_ID: -8}"
 
 # .claude 디렉토리 확인
 mkdir -p .claude
@@ -142,7 +149,7 @@ INTERACTIVE=$INTERACTIVE
 conflict-analyzer 에이전트를 Agent 도구로 spawn한다:
 - subagent_type은 사용하지 않고 일반 Agent로 spawn
 - 프롬프트에 project_path, scenarios_dir, num_agents, config 정보 전달
-- 에이전트의 conflict-analyzer.md 내용을 프롬프트에 포함 (Read 도구로 \${PLUGIN_ROOT}/agents/conflict-analyzer.md 읽기)
+- 에이전트의 conflict-analyzer.md 내용을 프롬프트에 포함 (Read 도구로 \${CLAUDE_PLUGIN_ROOT}/agents/conflict-analyzer.md 읽기)
 - 결과: conflict-map.json 생성
 
 conflict-map을 읽고 기존 시나리오 파일에 isolation 블록을 주입한다.
@@ -234,7 +241,7 @@ heartbeat 갱신: phase=pr, cycle=현재
 
 ## 매 Phase 시작 시 반드시 실행
 
-1. heartbeat 갱신: \`bash \"\${PLUGIN_ROOT}/scripts/heartbeat.sh\" update {phase} {cycle}\`
+1. heartbeat 갱신: \`bash \"\${CLAUDE_PLUGIN_ROOT}/scripts/heartbeat.sh\" update {phase} {cycle}\`
    (또는 .claude/e2e-storm-heartbeat.json에 직접 Write)
 2. state.json의 phases.current 업데이트"
 

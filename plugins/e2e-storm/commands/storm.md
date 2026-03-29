@@ -38,6 +38,13 @@ allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/setup-storm-cycle.sh:*)", "B
 - 매 cycle 결과를 state.json과 results.tsv에 기록
 - KEEP 판정 시에만 커밋 유지, DISCARD 시 git reset
 
+### 메트릭 판정 세부 규칙
+- **첫 cycle**: prev_rate가 없으면 prev_rate = 0으로 간주하여 항상 KEEP
+- **0 나누기 방지**: total == skip이면 pass_rate = 0으로 처리
+- **DISCARD 시**: `git reset --hard HEAD~N` 대신, cycle 시작 전 기록한 커밋 SHA로 `git reset --hard {pre-cycle-sha}`를 사용
+- **PR 생성 전**: `gh pr list --head {branch} --json number`로 기존 PR 확인. 이미 있으면 `gh pr edit`으로 업데이트
+- **루프 종료 시**: worktree 정리 — `git worktree remove {path}` 실행
+
 ## 에이전트 활용
 
 이 커맨드는 3개의 전문 에이전트를 활용한다:

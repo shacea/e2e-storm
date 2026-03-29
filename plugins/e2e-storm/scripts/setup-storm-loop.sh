@@ -46,8 +46,8 @@ while [[ $# -gt 0 ]]; do
       show_help
       ;;
     --agents)
-      if [[ -z "${2:-}" ]] || [[ ! "$2" =~ ^[0-9]+$ ]]; then
-        echo "❌ --agents 는 양의 정수 필요 (예: --agents 10)" >&2
+      if [[ -z "${2:-}" ]] || [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -eq 0 ]]; then
+        echo "❌ --agents 는 1 이상의 정수 필요 (예: --agents 10)" >&2
         exit 1
       fi
       AGENTS="$2"
