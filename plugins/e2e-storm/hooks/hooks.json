@@ -1,5 +1,5 @@
 {
-  "description": "E2E Storm loop stop hook — ralph-loop 메커니즘으로 테스트 반복 실행",
+  "description": "E2E Storm stop hook — execute 루프(ralph-loop) 및 storm 루프(자율 테스트-수정 반복) 지원, watchdog heartbeat 포함",
   "hooks": {
     "Stop": [
       {
